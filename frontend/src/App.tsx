@@ -8,6 +8,7 @@ import { ChangePasswordPage } from './pages/auth/ChangePasswordPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { LookupPage } from './pages/operator/LookupPage';
 import { ResidentHomePage } from './pages/resident/ResidentHomePage';
+import { PropertyProvider } from './auth/PropertyContext';
 
 // Any unknown address sends the user to their own home screen
 function HomeRedirect() {
@@ -22,7 +23,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/change-password" element={<RequireSession allowPasswordChange><ChangePasswordPage /></RequireSession>} />
 
-      <Route element={<RequireSession><AppShell /></RequireSession>}>
+      <Route element={<RequireSession><PropertyProvider><AppShell /></PropertyProvider></RequireSession>}>
         <Route path="/lookup" element={<RequireRole roles={['SUPER_ADMIN', 'PROPERTY_ADMIN', 'TOWING_OPERATOR']}><LookupPage /></RequireRole>} />
         <Route path="/admin" element={<RequireRole roles={['SUPER_ADMIN', 'PROPERTY_ADMIN']}><AdminHomePage /></RequireRole>} />
         <Route path="/me" element={<RequireRole roles={['RESIDENT']}><ResidentHomePage /></RequireRole>} />

@@ -27,6 +27,7 @@ public class Apartment {
     @Column(nullable = false)
     private Integer maxVisitorPasses;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ApartmentStatus status = ApartmentStatus.ACTIVE;
 
