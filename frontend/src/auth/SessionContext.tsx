@@ -45,6 +45,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
+  // Going Back can restore an old page from the browser's memory, including "signed in".
+  // When that happens, ask the backend again so a signed-out user gets sent to sign in
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) void refresh();
+    }
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, [refresh]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     await login(email, password);
     const user = await getMe();

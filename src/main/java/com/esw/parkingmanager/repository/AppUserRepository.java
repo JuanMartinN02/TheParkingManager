@@ -10,6 +10,9 @@ import java.util.UUID;
 
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
+    // FOR TESTING
+    Optional<AppUser> findFirstByRole(Role role);
+
     // For login
     Optional<AppUser> findByEmail(String email);
 
