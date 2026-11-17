@@ -1,5 +1,6 @@
 package com.esw.parkingmanager.controller;
 
+import com.esw.parkingmanager.dto.ApartmentOverview;
 import com.esw.parkingmanager.dto.ApartmentRequest;
 import com.esw.parkingmanager.dto.ApartmentResponse;
 import com.esw.parkingmanager.dto.MoveOutResponse;
@@ -66,5 +67,11 @@ public class ApartmentController {
     public ApartmentResponse moveIn(@PathVariable UUID propertyId, @PathVariable UUID apartmentId) {
         access.checkApartment(propertyId, apartmentId, ADMINS);
         return ApartmentResponse.from(apartmentService.moveIn(propertyId, apartmentId));
+    }
+
+    @GetMapping("/overview")
+    public List<ApartmentOverview> overview(@PathVariable UUID propertyId) {
+        access.checkProperty(propertyId, STAFF);
+        return apartmentService.overview(propertyId);
     }
 }

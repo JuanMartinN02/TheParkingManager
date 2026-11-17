@@ -1,5 +1,6 @@
 package com.esw.parkingmanager.service;
 
+import com.esw.parkingmanager.dto.ApartmentOverview;
 import com.esw.parkingmanager.dto.MoveOutResponse;
 import com.esw.parkingmanager.model.*;
 import com.esw.parkingmanager.repository.*;
@@ -12,6 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,19 +31,24 @@ class ApartmentServiceTest {
 
     private static final UUID PROPERTY_A = UUID.randomUUID();
     private static final UUID APARTMENT_301 = UUID.randomUUID();
+    private static final UUID APARTMENT_302 = UUID.randomUUID();
+    // Nov 14 in Houston
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-11-14T18:00:00Z"), ZoneId.of("America/Chicago"));
+    private static final LocalDate TODAY = LocalDate.of(2026, 11, 14);
 
     @Mock private ApartmentRepository apartmentRepository;
     @Mock private PropertyRepository propertyRepository;
     @Mock private VehicleRepository vehicleRepository;
     @Mock private ParkingAuthorizationRepository authorizationRepository;
     @Mock private AppUserRepository userRepository;
+    
 
     private ApartmentService service;
 
     @BeforeEach
     void setUp() {
-        service = new ApartmentService(apartmentRepository, propertyRepository, vehicleRepository,
-                authorizationRepository, userRepository);
+            service = new ApartmentService(apartmentRepository, propertyRepository, vehicleRepository,
+                authorizationRepository, userRepository, CLOCK);
     }
 
     @Test
@@ -136,6 +146,27 @@ class ApartmentServiceTest {
         verify(apartmentRepository, never()).save(any());
     }
 
+    @Test
+    void overviewCombinesCarCountsAndActiveParkingPerApartment() {
+        Apartment withCars = apartment(APARTMENT_301, "301");
+        Apartment empty = apartment(APARTMENT_302, "302");
+        when(apartmentRepository.findByPropertyId(PROPERTY_A)).thenReturn(List.of(withCars, empty));
+        when(vehicleRepository.countByApartmentForProperty(PROPERTY_A))
+                .thenReturn(List.of(new ApartmentVehicleCount(APARTMENT_301, 2L)));
+        ParkingAuthorization permit = new ParkingAuthorization();
+        permit.setApartment(withCars);
+        when(authorizationRepository.findActiveForProperty(PROPERTY_A, TODAY)).thenReturn(List.of(permit));
+
+        List<ApartmentOverview> overview = service.overview(PROPERTY_A);
+
+        assertThat(overview.get(0).vehicleCount()).isEqualTo(2);
+        assertThat(overview.get(0).activeAuthorizations()).hasSize(1);
+        assertThat(overview.get(0).activeAuthorizations().get(0).spotLabel()).isNull();
+        // Missing from both queries, still listed with zeros instead of a crash
+        assertThat(overview.get(1).vehicleCount()).isZero();
+        assertThat(overview.get(1).activeAuthorizations()).isEmpty();
+    }
+
     // ---------- Helpers ----------
 
     // Builds the apartment and makes the fake repository return it, like getOne finds it in the database
@@ -153,4 +184,12 @@ class ApartmentServiceTest {
         resident.setRole(Role.RESIDENT);
         return resident;
     }
+
+    private Apartment apartment(UUID id, String unitNumber) {
+        Apartment apartment = new Apartment();
+        ReflectionTestUtils.setField(apartment, "id", id);
+        apartment.setUnitNumber(unitNumber);
+        return apartment;
+    }
+
 }

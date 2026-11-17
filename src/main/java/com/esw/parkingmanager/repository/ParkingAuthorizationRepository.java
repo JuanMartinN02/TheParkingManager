@@ -59,6 +59,17 @@ public interface ParkingAuthorizationRepository extends JpaRepository<ParkingAut
     List<ParkingAuthorization> findActiveForSpot(@Param("spotId") UUID spotId,
                                                  @Param("today") LocalDate today);
 
+    // JOIN FETCH loads apartment and spot in this same query. LEFT on spot is essential: an inner join would drop permits
+    @Query("""
+            SELECT a FROM ParkingAuthorization a
+            JOIN FETCH a.apartment
+            LEFT JOIN FETCH a.spot
+            WHERE a.property.id = :propertyId
+              AND (a.validUntil IS NULL OR a.validUntil >= :today)
+            """)
+    List<ParkingAuthorization> findActiveForProperty(@Param("propertyId") UUID propertyId,
+                                                     @Param("today") LocalDate today);
+
     // For move-out / move-in
     long deleteByApartmentId(UUID apartmentId);
 
