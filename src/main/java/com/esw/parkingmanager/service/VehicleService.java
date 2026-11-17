@@ -3,7 +3,6 @@ package com.esw.parkingmanager.service;
 import com.esw.parkingmanager.model.Apartment;
 import com.esw.parkingmanager.model.ApartmentStatus;
 import com.esw.parkingmanager.model.Vehicle;
-import com.esw.parkingmanager.repository.ApartmentRepository;
 import com.esw.parkingmanager.repository.VehicleRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;

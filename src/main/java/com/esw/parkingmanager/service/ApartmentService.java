@@ -1,5 +1,7 @@
 package com.esw.parkingmanager.service;
 
+import com.esw.parkingmanager.dto.ApartmentOverview;
+import com.esw.parkingmanager.dto.AuthorizationSummary;
 import com.esw.parkingmanager.dto.MoveOutResponse;
 import com.esw.parkingmanager.model.Apartment;
 import com.esw.parkingmanager.model.ApartmentStatus;
@@ -11,8 +13,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ApartmentService {
@@ -22,17 +28,20 @@ public class ApartmentService {
     private final VehicleRepository vehicleRepository;
     private final ParkingAuthorizationRepository authorizationRepository;
     private final AppUserRepository userRepository;
+    private final Clock clock;
 
     public ApartmentService(ApartmentRepository apartmentRepository,
                             PropertyRepository propertyRepository,
                             VehicleRepository vehicleRepository,
                             ParkingAuthorizationRepository authorizationRepository,
-                            AppUserRepository userRepository) {
+                            AppUserRepository userRepository,
+                            Clock clock) {
         this.apartmentRepository = apartmentRepository;
         this.propertyRepository = propertyRepository;
         this.vehicleRepository = vehicleRepository;
         this.authorizationRepository = authorizationRepository;
         this.userRepository = userRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -113,5 +122,32 @@ public class ApartmentService {
         }
         apartment.setStatus(ApartmentStatus.ACTIVE);
         return apartmentRepository.save(apartment);
+    }
+
+    // Everything the apartments list needs in 3 queries, however many apartments there are
+    @Transactional(readOnly = true)
+    public List<ApartmentOverview> overview(UUID propertyId) {
+        LocalDate today = LocalDate.now(clock);
+        List<Apartment> apartments = apartmentRepository.findByPropertyId(propertyId);
+
+        Map<UUID, Long> carCounts = vehicleRepository.countByApartmentForProperty(propertyId).stream()
+                .collect(Collectors.toMap(ApartmentVehicleCount::apartmentId, ApartmentVehicleCount::count));
+
+        Map<UUID, List<AuthorizationSummary>> parking = authorizationRepository.findActiveForProperty(propertyId, today).stream()
+                .collect(Collectors.groupingBy(
+                        authorization -> authorization.getApartment().getId(),
+                        Collectors.mapping(AuthorizationSummary::from, Collectors.toList())));
+
+        // An apartment with no cars or no parking isn't in those maps, so it gets 0 and an empty list
+        return apartments.stream()
+                .map(apartment -> new ApartmentOverview(
+                        apartment.getId(),
+                        apartment.getUnitNumber(),
+                        apartment.getStatus(),
+                        apartment.getMaxVehicles(),
+                        apartment.getMaxVisitorPasses(),
+                        carCounts.getOrDefault(apartment.getId(), 0L),
+                        parking.getOrDefault(apartment.getId(), List.of())))
+                .toList();
     }
 }

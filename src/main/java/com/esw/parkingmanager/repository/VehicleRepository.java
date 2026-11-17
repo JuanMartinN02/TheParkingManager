@@ -2,6 +2,8 @@ package com.esw.parkingmanager.repository;
 
 import com.esw.parkingmanager.model.Vehicle;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +28,13 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     // For move-out / move-in
     long deleteByApartmentId(UUID apartmentId);
+
+        // Counted by the database in one query, instead of loading every car
+    @Query("""
+            SELECT new com.esw.parkingmanager.repository.ApartmentVehicleCount(v.apartment.id, COUNT(v))
+            FROM Vehicle v
+            WHERE v.property.id = :propertyId
+            GROUP BY v.apartment.id
+            """)
+    List<ApartmentVehicleCount> countByApartmentForProperty(@Param("propertyId") UUID propertyId);
 }
